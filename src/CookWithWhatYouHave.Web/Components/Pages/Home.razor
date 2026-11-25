@@ -1,0 +1,40 @@
+﻿@page "/"
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Cook With What You Have</PageTitle>
+
+<main class="home">
+    <h1 class="home__title">Cook With What You Have</h1>
+    <p class="home__lead">Cocina con lo que tienes en casa.</p>
+    <p class="home__status @statusClass">@statusMessage</p>
+</main>
+
+@code {
+    private string statusMessage = "Comprobando la API…";
+    private string statusClass = "home__status--pending";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            using var response = await client.GetAsync("/health");
+
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "API conectada";
+                statusClass = "home__status--ok";
+                return;
+            }
+        }
+        catch (HttpRequestException)
+        {
+        }
+        catch (TaskCanceledException)
+        {
+        }
+
+        statusMessage = "La API no está disponible";
+        statusClass = "home__status--down";
+    }
+}

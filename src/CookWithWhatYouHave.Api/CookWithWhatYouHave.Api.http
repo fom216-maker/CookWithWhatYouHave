@@ -1,0 +1,5 @@
+@CookWithWhatYouHave.Api_HostAddress = http://localhost:8080
+
+GET {{CookWithWhatYouHave.Api_HostAddress}}/health
+
+###
