@@ -82,6 +82,42 @@ public sealed class RecipeGenerationTests
         Assert.Equal(4.50m, quote.Total);
     }
 
+    [Fact]
+    public void Price_parser_reads_superfudis_offer_prices()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "items": [
+                {
+                  "query": "harina",
+                  "quantity": 1,
+                  "offers": [
+                    {"retailer": "Mercadona", "price_eur": 1.10},
+                    {"retailer": "Carrefour", "price_eur": 1.40}
+                  ]
+                },
+                {
+                  "query": "huevo",
+                  "quantity": 1,
+                  "offers": [
+                    {"retailer": "Mercadona", "price_eur": 2.20}
+                  ]
+                }
+              ],
+              "best_total_eur": 3.30,
+              "best_retailers": ["Mercadona"]
+            }
+            """);
+
+        var quote = SuperfudisClient.Parse(document.RootElement);
+
+        Assert.NotNull(quote);
+        Assert.Equal("Mercadona", quote.CheapestRetailer);
+        Assert.Equal(3.30m, quote.Total);
+        Assert.Single(quote.Retailers);
+    }
+
     [SkippableFact]
     public async Task Gemini_embeds_and_generates_when_the_key_is_configured()
     {

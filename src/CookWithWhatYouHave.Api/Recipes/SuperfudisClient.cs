@@ -51,6 +51,12 @@ public sealed class SuperfudisClient(HttpClient httpClient, IOptions<SuperfudisO
 
     public static PriceQuote? Parse(JsonElement root)
     {
+        var basket = ParseBasket(root);
+        if (basket is not null)
+        {
+            return basket;
+        }
+
         var quotes = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         Collect(root, quotes);
         if (quotes.Count == 0)
@@ -65,6 +71,81 @@ public sealed class SuperfudisClient(HttpClient httpClient, IOptions<SuperfudisO
 
         var cheapest = ordered[0];
         return new PriceQuote(cheapest.Retailer, cheapest.Total, ordered);
+    }
+
+    private static PriceQuote? ParseBasket(JsonElement root)
+    {
+        if (!root.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var totals = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var covered = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var itemCount = 0;
+
+        foreach (var item in items.EnumerateArray())
+        {
+            if (!item.TryGetProperty("offers", out var offers) || offers.ValueKind != JsonValueKind.Array || offers.GetArrayLength() == 0)
+            {
+                continue;
+            }
+
+            itemCount++;
+            var quantity = item.TryGetProperty("quantity", out var quantityElement)
+                && TryReadDecimal(quantityElement, out var parsedQuantity)
+                && parsedQuantity > 0
+                    ? parsedQuantity
+                    : 1m;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var offer in offers.EnumerateArray())
+            {
+                if (!offer.TryGetProperty("retailer", out var retailerElement)
+                    || retailerElement.GetString() is not { Length: > 0 } retailer
+                    || !offer.TryGetProperty("price_eur", out var priceElement)
+                    || !TryReadDecimal(priceElement, out var price))
+                {
+                    continue;
+                }
+
+                if (!seen.Add(retailer))
+                {
+                    continue;
+                }
+
+                totals[retailer] = totals.GetValueOrDefault(retailer) + price * quantity;
+                covered[retailer] = covered.GetValueOrDefault(retailer) + 1;
+            }
+        }
+
+        if (itemCount == 0)
+        {
+            return null;
+        }
+
+        if (root.TryGetProperty("best_total_eur", out var bestTotalElement)
+            && TryReadDecimal(bestTotalElement, out var bestTotal)
+            && root.TryGetProperty("best_retailers", out var bestRetailers)
+            && bestRetailers.ValueKind == JsonValueKind.Array
+            && bestRetailers.EnumerateArray().FirstOrDefault().GetString() is { Length: > 0 } bestRetailer)
+        {
+            totals[bestRetailer] = bestTotal;
+            covered[bestRetailer] = itemCount;
+        }
+
+        var ordered = totals
+            .Where(pair => covered.GetValueOrDefault(pair.Key) == itemCount)
+            .Select(pair => new RetailerQuote(pair.Key, pair.Value))
+            .OrderBy(quote => quote.Total)
+            .ToArray();
+
+        if (ordered.Length == 0)
+        {
+            return null;
+        }
+
+        return new PriceQuote(ordered[0].Retailer, ordered[0].Total, ordered);
     }
 
     private static void Collect(JsonElement element, Dictionary<string, decimal> quotes)
