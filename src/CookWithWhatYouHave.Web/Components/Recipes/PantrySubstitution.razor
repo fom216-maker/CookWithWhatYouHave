@@ -1,0 +1,19 @@
+<section class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5 card-title">Equivalencias de la despensa</h2>
+        <ul class="list-group list-group-flush">
+            @foreach (var item in Items)
+            {
+                <li class="list-group-item" @key="item.Original">
+                    <span class="badge text-bg-secondary me-2">@item.Original</span>
+                    @item.LocalEquivalent
+                </li>
+            }
+        </ul>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SubstitutionItem> Items { get; set; } = [];
+}

@@ -1,0 +1,66 @@
+@page "/recipes/{Id:guid}"
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Receta</PageTitle>
+
+@if (isLoading)
+{
+    <div class="alert alert-info">Cargando la receta…</div>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (screen is null)
+{
+    <p class="text-secondary">No hay una receta para mostrar.</p>
+}
+else
+{
+    <RecipeScreenView Blocks="screen.Blocks" />
+}
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private bool isLoading = true;
+    private string? errorMessage;
+    private RecipeScreenResponse? screen;
+
+    [Parameter]
+    public Guid Id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        screen = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            using var response = await client.GetAsync($"/recipes/{Id}");
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                errorMessage = "Esa receta no está guardada.";
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se ha podido cargar la receta.";
+                return;
+            }
+
+            screen = await response.Content.ReadFromJsonAsync<RecipeScreenResponse>(JsonOptions);
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se ha podido contactar con la API.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

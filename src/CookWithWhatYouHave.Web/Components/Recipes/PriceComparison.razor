@@ -1,0 +1,29 @@
+<section class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5 card-title">Lo que falta, por supermercado</h2>
+        <p class="card-text">La cesta más barata está en <strong>@CheapestRetailer</strong>, unos @Format(Total).</p>
+        <ul class="list-group list-group-flush">
+            @foreach (var retailer in Retailers)
+            {
+                <li class="list-group-item d-flex justify-content-between" @key="retailer.Retailer">
+                    <span>@retailer.Retailer</span>
+                    <span>@Format(retailer.Total)</span>
+                </li>
+            }
+        </ul>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string CheapestRetailer { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public decimal Total { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<RetailerPriceItem> Retailers { get; set; } = [];
+
+    private static string Format(decimal amount) =>
+        $"{amount.ToString("0.00", System.Globalization.CultureInfo.GetCultureInfo("es-ES"))} €";
+}

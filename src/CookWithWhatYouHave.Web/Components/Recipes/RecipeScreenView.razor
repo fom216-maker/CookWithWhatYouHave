@@ -1,0 +1,40 @@
+@if (Blocks.Count == 0)
+{
+    <p class="text-secondary mb-0">Todavía no hay una receta.</p>
+}
+else
+{
+    @for (var index = 0; index < Blocks.Count; index++)
+    {
+        var block = Blocks[index];
+        switch (block)
+        {
+            case RecipeHeroBlock hero:
+                <RecipeHero @key="index" Title="hero.Title" Summary="hero.Summary" />
+                break;
+            case LeftoverRescueBlock leftover:
+                <LeftoverRescue @key="index" Pitch="leftover.Pitch" />
+                break;
+            case PantrySubstitutionBlock pantry:
+                <PantrySubstitution @key="index" Items="pantry.Items" />
+                break;
+            case ProductAlertBlock alert:
+                <ProductAlert @key="index" ProductName="alert.ProductName" NutriScore="alert.NutriScore" NovaGroup="alert.NovaGroup" Message="alert.Message" />
+                break;
+            case IngredientListBlock ingredients:
+                <IngredientList @key="index" Used="ingredients.Used" Missing="ingredients.Missing" />
+                break;
+            case StepListBlock steps:
+                <StepList @key="index" Steps="steps.Steps" />
+                break;
+            case PriceComparisonBlock prices:
+                <PriceComparison @key="index" CheapestRetailer="prices.CheapestRetailer" Total="prices.Total" Retailers="prices.Retailers" />
+                break;
+        }
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<UiBlock> Blocks { get; set; } = [];
+}

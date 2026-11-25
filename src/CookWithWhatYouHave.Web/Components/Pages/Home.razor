@@ -3,38 +3,71 @@
 
 <PageTitle>Cook With What You Have</PageTitle>
 
-<main class="home">
-    <h1 class="home__title">Cook With What You Have</h1>
-    <p class="home__lead">Cocina con lo que tienes en casa.</p>
-    <p class="home__status @statusClass">@statusMessage</p>
-</main>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <section class="card">
+            <div class="card-body">
+                <h1 class="h3 card-title">Cocina con lo que tienes</h1>
+                <p class="text-secondary">Escribe lo que hay en la nevera. La receta se adapta a una cocina española.</p>
+                <div class="mb-3">
+                    <label class="form-label" for="ingredients">Ingredientes</label>
+                    <textarea id="ingredients" class="form-control" rows="5" @bind="ingredients" @bind:event="oninput"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="barcode">Código de barras</label>
+                    <input id="barcode" class="form-control" @bind="barcode" @bind:event="oninput" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="method">Modo de cocina</label>
+                    <select id="method" class="form-select" @bind="cookingMethod">
+                        <option value="@CookingMethod.PanOven">Sartén / horno</option>
+                        <option value="@CookingMethod.AirFryer">Airfryer</option>
+                        <option value="@CookingMethod.PressureCooker">Olla rápida</option>
+                    </select>
+                </div>
+                <div class="form-check mb-3">
+                    <input id="leftovers" class="form-check-input" type="checkbox" @bind="useLeftovers" />
+                    <label class="form-check-label" for="leftovers">Aprovechar sobras</label>
+                </div>
+                <button class="btn btn-primary" type="button" disabled="@isLoading" @onclick="GenerateAsync">
+                    @(isLoading ? "Generando receta…" : "Generar receta")
+                </button>
+            </div>
+        </section>
 
-@code {
-    private string statusMessage = "Comprobando la API…";
-    private string statusClass = "home__status--pending";
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var client = HttpClientFactory.CreateClient("Api");
-            using var response = await client.GetAsync("/health");
-
-            if (response.IsSuccessStatusCode)
+        <section class="mt-4">
+            <h2 class="h5">Recetas recientes</h2>
+            @if (recent.Count == 0)
             {
-                statusMessage = "API conectada";
-                statusClass = "home__status--ok";
-                return;
+                <p class="text-secondary">Cuando generes una receta, quedará guardada aquí.</p>
             }
-        }
-        catch (HttpRequestException)
+            else
+            {
+                <div class="list-group">
+                    @foreach (var item in recent)
+                    {
+                        <a class="list-group-item list-group-item-action" href="@($"/recipes/{item.Id}")" @key="item.Id">@item.Title</a>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+    <div class="col-lg-7">
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
+            <div class="alert alert-danger">@errorMessage</div>
         }
-        catch (TaskCanceledException)
+        else if (isLoading)
         {
+            <div class="alert alert-info">Buscando recetas, productos y precios…</div>
         }
-
-        statusMessage = "La API no está disponible";
-        statusClass = "home__status--down";
-    }
-}
+        else if (screen is null)
+        {
+            <p class="text-secondary">La receta aparecerá aquí.</p>
+        }
+        else
+        {
+            <RecipeScreenView Blocks="screen.Blocks" />
+        }
+    </div>
+</div>

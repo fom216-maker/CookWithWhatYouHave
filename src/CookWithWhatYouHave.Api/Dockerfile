@@ -1,7 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+COPY src/CookWithWhatYouHave.Contracts/CookWithWhatYouHave.Contracts.csproj CookWithWhatYouHave.Contracts/
 COPY src/CookWithWhatYouHave.Api/CookWithWhatYouHave.Api.csproj CookWithWhatYouHave.Api/
 RUN dotnet restore CookWithWhatYouHave.Api/CookWithWhatYouHave.Api.csproj
+COPY src/CookWithWhatYouHave.Contracts/ CookWithWhatYouHave.Contracts/
 COPY src/CookWithWhatYouHave.Api/ CookWithWhatYouHave.Api/
 RUN dotnet publish CookWithWhatYouHave.Api/CookWithWhatYouHave.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
 

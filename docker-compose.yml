@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cook}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cook}
@@ -21,6 +21,13 @@ services:
       dockerfile: src/CookWithWhatYouHave.Api/Dockerfile
     environment:
       ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-cookwithwhatyouhave};Username=${POSTGRES_USER:-cook};Password=${POSTGRES_PASSWORD:-cook}
+      Gemini__ApiKey: ${GEMINI_API_KEY:-}
+      Gemini__Model: ${GEMINI_MODEL:-gemini-3.6-flash}
+      Gemini__EmbeddingModel: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
+      Gemini__EmbeddingDimensions: ${GEMINI_EMBEDDING_DIMENSIONS:-768}
+      OpenFoodFacts__BaseUrl: https://es.openfoodfacts.org
+      OpenFoodFacts__UserAgent: CookWithWhatYouHave/1.0 (dev)
+      Superfudis__BaseUrl: https://supercomparador-i9tw.onrender.com
     ports:
       - "8080:8080"
     depends_on:

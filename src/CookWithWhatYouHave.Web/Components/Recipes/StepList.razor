@@ -1,0 +1,36 @@
+<section class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5 card-title">Pasos</h2>
+        @if (Steps.Count == 0)
+        {
+            <p class="text-secondary mb-0">Esta receta no tiene pasos.</p>
+        }
+        else
+        {
+            <ol class="list-group list-group-numbered">
+                @foreach (var step in Steps)
+                {
+                    <li class="list-group-item" @key="step.Order">
+                        <div>@step.Instruction</div>
+                        @if (!string.IsNullOrWhiteSpace(step.Temperature) || !string.IsNullOrWhiteSpace(step.Duration))
+                        {
+                            <div class="text-secondary">
+                                @step.Temperature
+                                @if (!string.IsNullOrWhiteSpace(step.Temperature) && !string.IsNullOrWhiteSpace(step.Duration))
+                                {
+                                    <span> · </span>
+                                }
+                                @step.Duration
+                            </div>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<RecipeStepItem> Steps { get; set; } = [];
+}

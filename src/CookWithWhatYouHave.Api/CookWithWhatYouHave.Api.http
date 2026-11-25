@@ -3,3 +3,18 @@
 GET {{CookWithWhatYouHave.Api_HostAddress}}/health
 
 ###
+
+POST {{CookWithWhatYouHave.Api_HostAddress}}/recipes/generate
+Content-Type: application/json
+
+{
+  "ingredients": "medio pollo asado y pan de ayer",
+  "useLeftovers": true,
+  "cookingMethod": "AirFryer"
+}
+
+###
+
+GET {{CookWithWhatYouHave.Api_HostAddress}}/recipes
+
+###

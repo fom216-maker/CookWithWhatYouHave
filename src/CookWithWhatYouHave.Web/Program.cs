@@ -12,7 +12,7 @@ var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
 builder.Services.AddHttpClient("Api", client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(5);
+    client.Timeout = TimeSpan.FromSeconds(90);
 });
 
 var app = builder.Build();
