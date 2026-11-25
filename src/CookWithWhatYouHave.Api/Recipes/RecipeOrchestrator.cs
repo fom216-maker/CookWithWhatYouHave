@@ -1,10 +1,9 @@
 using CookWithWhatYouHave.Contracts;
-using Microsoft.Extensions.Options;
 
 namespace CookWithWhatYouHave.Api.Recipes;
 
 public sealed class RecipeOrchestrator(
-    IOptions<GeminiOptions> geminiOptions,
+    IRecipeModel model,
     IEmbeddingClient embeddings,
     IRecipeRetriever retriever,
     IOpenFoodFactsClient openFoodFacts,
@@ -17,10 +16,9 @@ public sealed class RecipeOrchestrator(
         GenerateRecipeRequest request,
         CancellationToken cancellationToken)
     {
-        if (!geminiOptions.Value.HasApiKey)
+        if (!model.IsConfigured)
         {
-            throw new RecipeGenerationUnavailableException(
-                "Falta GEMINI_API_KEY. Añádela en .env y reinicia la API.");
+            throw new RecipeGenerationUnavailableException(model.MissingKeyMessage);
         }
 
         var ingredients = request.Ingredients.Trim();

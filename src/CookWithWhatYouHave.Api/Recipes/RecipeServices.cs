@@ -14,6 +14,13 @@ public interface IRecipeGenerator
     Task<RecipeDraft> GenerateAsync(RecipePrompt prompt, CancellationToken cancellationToken);
 }
 
+public interface IRecipeModel
+{
+    bool IsConfigured { get; }
+
+    string MissingKeyMessage { get; }
+}
+
 public interface IRecipeRetriever
 {
     Task<IReadOnlyList<RetrievedRecipe>> SearchAsync(string query, float[] embedding, CancellationToken cancellationToken);

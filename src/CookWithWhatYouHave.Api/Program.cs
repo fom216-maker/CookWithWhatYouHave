@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json.Serialization;
 using CookWithWhatYouHave.Api.Data;
 using CookWithWhatYouHave.Api.Recipes;
@@ -15,7 +16,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+builder.Services.Configure<AiOptions>(builder.Configuration.GetSection(AiOptions.SectionName));
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection(GeminiOptions.SectionName));
+builder.Services.Configure<CloudflareOptions>(builder.Configuration.GetSection(CloudflareOptions.SectionName));
 builder.Services.Configure<OpenFoodFactsOptions>(builder.Configuration.GetSection(OpenFoodFactsOptions.SectionName));
 builder.Services.Configure<SuperfudisOptions>(builder.Configuration.GetSection(SuperfudisOptions.SectionName));
 
@@ -28,18 +31,53 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();
 
-builder.Services.AddHttpClient<GeminiClient>(client =>
+var aiProvider = builder.Configuration[$"{AiOptions.SectionName}:Provider"] ?? "Gemini";
+if (aiProvider.Equals("Cloudflare", StringComparison.OrdinalIgnoreCase))
 {
-    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
-    client.Timeout = TimeSpan.FromSeconds(45);
-    var apiKey = builder.Configuration[$"{GeminiOptions.SectionName}:ApiKey"];
-    if (!string.IsNullOrWhiteSpace(apiKey))
+    builder.Services.AddHttpClient<CloudflareClient>(client =>
     {
-        client.DefaultRequestHeaders.Add("x-goog-api-key", apiKey);
-    }
-});
-builder.Services.AddScoped<IEmbeddingClient>(services => services.GetRequiredService<GeminiClient>());
-builder.Services.AddScoped<IRecipeGenerator>(services => services.GetRequiredService<GeminiClient>());
+        var accountId = builder.Configuration[$"{CloudflareOptions.SectionName}:AccountId"];
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            accountId = "missing";
+        }
+
+        client.BaseAddress = new Uri($"https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/");
+        client.Timeout = TimeSpan.FromSeconds(45);
+        var apiToken = builder.Configuration[$"{CloudflareOptions.SectionName}:ApiToken"];
+        if (!string.IsNullOrWhiteSpace(apiToken))
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiToken);
+        }
+    });
+    builder.Services.AddScoped<IEmbeddingClient>(services => services.GetRequiredService<CloudflareClient>());
+    builder.Services.AddScoped<IRecipeGenerator>(services => services.GetRequiredService<CloudflareClient>());
+    builder.Services.AddScoped<IRecipeModel>(services => services.GetRequiredService<CloudflareClient>());
+}
+else if (aiProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<GeminiClient>(client =>
+    {
+        client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+        client.Timeout = TimeSpan.FromSeconds(45);
+        var apiKey = builder.Configuration[$"{GeminiOptions.SectionName}:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            client.DefaultRequestHeaders.Add("x-goog-api-key", apiKey);
+        }
+    });
+    builder.Services.AddScoped<IEmbeddingClient>(services => services.GetRequiredService<GeminiClient>());
+    builder.Services.AddScoped<IRecipeGenerator>(services => services.GetRequiredService<GeminiClient>());
+    builder.Services.AddScoped<IRecipeModel>(services => services.GetRequiredService<GeminiClient>());
+}
+else
+{
+    var unavailable = new UnavailableRecipeModel("AI_PROVIDER debe ser Gemini o Cloudflare.");
+    builder.Services.AddSingleton(unavailable);
+    builder.Services.AddSingleton<IEmbeddingClient>(unavailable);
+    builder.Services.AddSingleton<IRecipeGenerator>(unavailable);
+    builder.Services.AddSingleton<IRecipeModel>(unavailable);
+}
 
 builder.Services.AddHttpClient<IOpenFoodFactsClient, OpenFoodFactsClient>((services, client) =>
 {
@@ -78,7 +116,20 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await database.Database.MigrateAsync();
+    const int attempts = 8;
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            await database.Database.MigrateAsync();
+            break;
+        }
+        catch (Exception exception) when (attempt < attempts)
+        {
+            app.Logger.LogWarning(exception, "Database is not ready. Retry {Attempt} of {Attempts}", attempt, attempts);
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+    }
     try
     {
         await scope.ServiceProvider.GetRequiredService<RecipeSeedService>().SeedAsync(CancellationToken.None);

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using CookWithWhatYouHave.Api.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Pgvector;
 
 namespace CookWithWhatYouHave.Api.Recipes;
@@ -9,14 +8,14 @@ namespace CookWithWhatYouHave.Api.Recipes;
 public sealed class RecipeSeedService(
     AppDbContext context,
     IEmbeddingClient embeddings,
-    IOptions<GeminiOptions> options,
+    IRecipeModel model,
     ILogger<RecipeSeedService> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task SeedAsync(CancellationToken cancellationToken)
     {
-        if (!options.Value.HasApiKey || await context.Recipes.AnyAsync(cancellationToken))
+        if (!model.IsConfigured || await context.Recipes.AnyAsync(cancellationToken))
         {
             return;
         }

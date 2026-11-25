@@ -115,6 +115,69 @@ public sealed class RecipeGenerationTests
         Assert.False(string.IsNullOrWhiteSpace(draft.Title));
     }
 
+    [SkippableFact]
+    public async Task Cloudflare_embeds_and_generates_when_the_token_is_configured()
+    {
+        var token = Environment.GetEnvironmentVariable("CLOUDFLARE_API_TOKEN");
+        var accountId = Environment.GetEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID");
+        Skip.If(string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(accountId), "CLOUDFLARE_API_TOKEN is not set.");
+
+        var settings = new CloudflareOptions
+        {
+            ApiToken = token!,
+            AccountId = accountId!,
+            Model = Environment.GetEnvironmentVariable("CLOUDFLARE_MODEL") ?? "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+            EmbeddingModel = Environment.GetEnvironmentVariable("CLOUDFLARE_EMBEDDING_MODEL") ?? "@cf/google/embeddinggemma-2",
+            EmbeddingDimensions = int.TryParse(Environment.GetEnvironmentVariable("CLOUDFLARE_EMBEDDING_DIMENSIONS"), out var dimensions)
+                ? dimensions
+                : 768
+        };
+
+        using var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri($"https://api.cloudflare.com/client/v4/accounts/{settings.AccountId}/ai/"),
+            Timeout = TimeSpan.FromSeconds(45)
+        };
+        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.ApiToken);
+        var client = new CloudflareClient(httpClient, Options.Create(settings));
+
+        var embedding = await client.EmbedQueryAsync("tortilla de patatas", CancellationToken.None);
+        var draft = await client.GenerateAsync(
+            new RecipePrompt("Devuelve una receta mínima de tortilla francesa. leftoverPitch vacío. Sin sustituciones. Un solo paso."),
+            CancellationToken.None);
+
+        Assert.Equal(settings.EmbeddingDimensions, embedding.Length);
+        Assert.False(string.IsNullOrWhiteSpace(draft.Title));
+    }
+
+    [Fact]
+    public void Cloudflare_parser_reads_embeddings_and_chat_text()
+    {
+        using var embeddings = JsonDocument.Parse(
+            """
+            {"result":{"data":[{"index":1,"embedding":[0.2,0.3]},{"index":0,"embedding":[0.1,0.4]}]}}
+            """);
+        var vectors = CloudflareClient.ReadEmbeddings(embeddings.RootElement, 2, 2);
+
+        Assert.Equal(0.1f, vectors[0][0]);
+        Assert.Equal(0.2f, vectors[1][0]);
+
+        using var direct = JsonDocument.Parse(
+            """
+            {"result":{"data":[[0.1,0.4],[0.2,0.3]]}}
+            """);
+        var directVectors = CloudflareClient.ReadEmbeddings(direct.RootElement, 2, 2);
+        Assert.Equal(0.1f, directVectors[0][0]);
+        Assert.Equal(0.2f, directVectors[1][0]);
+
+        using var chat = JsonDocument.Parse(
+            """
+            {"choices":[{"message":{"content":"{\"title\":\"Tortilla\"}"}}]}
+            """);
+
+        Assert.Contains("Tortilla", CloudflareClient.ReadChatText(chat.RootElement), StringComparison.Ordinal);
+    }
+
     private static GenerateRecipeRequest SampleRequest() => new()
     {
         Ingredients = "pan duro y ajo",
@@ -127,7 +190,7 @@ public sealed class RecipeGenerationTests
         IOpenFoodFactsClient openFoodFacts,
         ISuperfudisClient prices) =>
         new(
-            Options.Create(new GeminiOptions { ApiKey = "test-key" }),
+            new ConfiguredModel(),
             new FakeEmbeddings(),
             new FakeRetriever(),
             openFoodFacts,
@@ -135,6 +198,13 @@ public sealed class RecipeGenerationTests
             prices,
             new InMemoryRecipeStore(),
             NullLogger<RecipeOrchestrator>.Instance);
+
+    private sealed class ConfiguredModel : IRecipeModel
+    {
+        public bool IsConfigured => true;
+
+        public string MissingKeyMessage => "";
+    }
 
     private sealed class FakeEmbeddings : IEmbeddingClient
     {

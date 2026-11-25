@@ -21,10 +21,16 @@ services:
       dockerfile: src/CookWithWhatYouHave.Api/Dockerfile
     environment:
       ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-cookwithwhatyouhave};Username=${POSTGRES_USER:-cook};Password=${POSTGRES_PASSWORD:-cook}
+      Ai__Provider: ${AI_PROVIDER:-Gemini}
       Gemini__ApiKey: ${GEMINI_API_KEY:-}
       Gemini__Model: ${GEMINI_MODEL:-gemini-3.6-flash}
       Gemini__EmbeddingModel: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-2}
       Gemini__EmbeddingDimensions: ${GEMINI_EMBEDDING_DIMENSIONS:-768}
+      Cloudflare__ApiToken: ${CLOUDFLARE_API_TOKEN:-}
+      Cloudflare__AccountId: ${CLOUDFLARE_ACCOUNT_ID:-}
+      Cloudflare__Model: ${CLOUDFLARE_MODEL:-@cf/meta/llama-3.3-70b-instruct-fp8-fast}
+      Cloudflare__EmbeddingModel: ${CLOUDFLARE_EMBEDDING_MODEL:-@cf/google/embeddinggemma-2}
+      Cloudflare__EmbeddingDimensions: ${CLOUDFLARE_EMBEDDING_DIMENSIONS:-768}
       OpenFoodFacts__BaseUrl: https://es.openfoodfacts.org
       OpenFoodFacts__UserAgent: CookWithWhatYouHave/1.0 (dev)
       Superfudis__BaseUrl: https://supercomparador-i9tw.onrender.com

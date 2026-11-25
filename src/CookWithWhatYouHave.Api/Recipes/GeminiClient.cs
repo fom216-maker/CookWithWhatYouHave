@@ -6,9 +6,14 @@ namespace CookWithWhatYouHave.Api.Recipes;
 
 public sealed class GeminiClient(
     HttpClient httpClient,
-    IOptions<GeminiOptions> options) : IEmbeddingClient, IRecipeGenerator
+    IOptions<GeminiOptions> options) : IEmbeddingClient, IRecipeGenerator, IRecipeModel
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public bool IsConfigured => options.Value.HasApiKey;
+
+    public string MissingKeyMessage =>
+        "Falta GEMINI_API_KEY. Añádela en .env y reinicia la API.";
 
     public Task<float[]> EmbedQueryAsync(string text, CancellationToken cancellationToken) =>
         EmbedAsync(text, "RETRIEVAL_QUERY", cancellationToken);
